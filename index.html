@@ -1,0 +1,975 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script>
+(function(){
+  try{
+    var t = localStorage.getItem("mmwave_theme_pref");
+    if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+  }catch(e){}
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>mmWave Channel Studio</title>
+<meta name="description" content="A lightweight, dependency-free statistical spatial channel simulator for mmWave/sub-THz links, inspired by NYUSIM-style methodology, with Gemini-powered result explanations.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f1f4f8;
+    --surface:#ffffff;
+    --surface-2:#e8edf3;
+    --border:#d7dee6;
+    --text:#101826;
+    --text-muted:#5a6779;
+    --accent:#0891b2;
+    --accent-soft:#0891b21a;
+    --accent-2:#c2760a;
+    --accent-2-soft:#c2760a1a;
+    --good:#15803d;
+    --warn:#b45309;
+    --bad:#b91c1c;
+    --grid-line:#dde3ea;
+    --focus:#0891b2;
+    color-scheme:light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0a1017;
+      --surface:#111a26;
+      --surface-2:#16212f;
+      --border:#243349;
+      --text:#e7edf5;
+      --text-muted:#8fa0b5;
+      --accent:#22d3ee;
+      --accent-soft:#22d3ee26;
+      --accent-2:#f0a93c;
+      --accent-2-soft:#f0a93c26;
+      --good:#4ade80;
+      --warn:#fbbf24;
+      --bad:#f87171;
+      --grid-line:#1e2a3a;
+      --focus:#22d3ee;
+      color-scheme:dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0a1017;
+    --surface:#111a26;
+    --surface-2:#16212f;
+    --border:#243349;
+    --text:#e7edf5;
+    --text-muted:#8fa0b5;
+    --accent:#22d3ee;
+    --accent-soft:#22d3ee26;
+    --accent-2:#f0a93c;
+    --accent-2-soft:#f0a93c26;
+    --good:#4ade80;
+    --warn:#fbbf24;
+    --bad:#f87171;
+    --grid-line:#1e2a3a;
+    --focus:#22d3ee;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box;}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:"IBM Plex Sans",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  img{max-width:100%;}
+  [hidden]{display:none!important;}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace;}
+  .app{max-width:1200px;margin:0 auto;padding:20px 16px 48px;}
+  .header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 16px;margin-bottom:18px;}
+  .header h1{font-size:1.5rem;margin:0;letter-spacing:-0.01em;}
+  .header .tag{color:var(--text-muted);font-size:0.82rem;max-width:46ch;}
+  .brand-mark{display:inline-flex;align-items:center;gap:8px;}
+  .brand-dot{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px var(--accent-soft);}
+  .layout{display:grid;grid-template-columns:296px 1fr;gap:16px;align-items:start;}
+  @media (max-width:860px){.layout{grid-template-columns:1fr;}}
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;}
+  .panel + .panel{margin-top:16px;}
+  .panel h2{font-size:0.78rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin:0 0 12px;font-weight:600;}
+  .field{margin-bottom:14px;}
+  .field:last-child{margin-bottom:0;}
+  .field label{display:flex;justify-content:space-between;align-items:baseline;font-size:0.82rem;font-weight:500;margin-bottom:6px;gap:8px;}
+  .field label .val{font-family:"IBM Plex Mono",monospace;color:var(--accent);font-size:0.82rem;font-variant-numeric:tabular-nums;}
+  select,input[type="number"],input[type="text"],input[type="password"]{
+    width:100%;padding:7px 9px;border-radius:7px;border:1px solid var(--border);
+    background:var(--surface-2);color:var(--text);font:inherit;font-size:0.86rem;
+  }
+  select:focus-visible,input:focus-visible,button:focus-visible,input[type="range"]:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
+  input[type="range"]{width:100%;accent-color:var(--accent);height:20px;background:transparent;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .seg{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+  .seg button{flex:1;padding:6px 4px;border:0;background:var(--surface-2);color:var(--text-muted);font:inherit;font-size:0.78rem;font-weight:600;cursor:pointer;}
+  .seg button.active{background:var(--accent);color:#04222b;}
+  :root[data-theme="dark"] .seg button.active{color:#03181f;}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .seg button.active{color:#03181f;}}
+  .btn{width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);font:inherit;font-size:0.84rem;font-weight:600;cursor:pointer;}
+  .btn:hover{border-color:var(--accent);}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#04222b;}
+  :root[data-theme="dark"] .btn.primary{color:#03181f;}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .btn.primary{color:#03181f;}}
+  .btn:disabled{opacity:0.55;cursor:not-allowed;}
+  .hint{font-size:0.74rem;color:var(--text-muted);margin-top:4px;line-height:1.4;}
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:10px;margin-bottom:16px;}
+  .stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 12px 10px;display:flex;flex-direction:column;gap:4px;min-width:0;}
+  .stat .label{font-size:0.68rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);font-weight:600;}
+  .stat .value{font-family:"IBM Plex Mono",monospace;font-size:1.15rem;font-variant-numeric:tabular-nums;line-height:1.25;overflow-wrap:break-word;}
+  .stat .sub{font-size:0.72rem;color:var(--text-muted);}
+  .pill{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:600;}
+  .pill.los{background:var(--accent-soft);color:var(--accent);}
+  .pill.nlos{background:var(--accent-2-soft);color:var(--accent-2);}
+  .chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media (max-width:860px){.chart-grid{grid-template-columns:1fr;}}
+  .chart-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 14px 8px;}
+  .chart-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px;flex-wrap:wrap;}
+  .chart-head h3{font-size:0.86rem;margin:0;font-weight:600;}
+  .legend{display:flex;gap:12px;font-size:0.72rem;color:var(--text-muted);}
+  .legend span{display:inline-flex;align-items:center;gap:5px;}
+  .swatch{width:9px;height:9px;border-radius:2px;display:inline-block;}
+  svg.chart{width:100%;height:auto;display:block;}
+  details.about{margin-top:16px;}
+  details.about summary{cursor:pointer;font-size:0.82rem;font-weight:600;color:var(--text-muted);padding:4px 0;}
+  details.about .body{font-size:0.82rem;color:var(--text-muted);line-height:1.55;padding-top:8px;}
+  details.about .body p{margin:0 0 10px;}
+  details.about .body p:last-child{margin-bottom:0;}
+  .ai-panel textarea{width:100%;min-height:70px;resize:vertical;padding:8px 9px;border-radius:7px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);font:inherit;font-size:0.84rem;}
+  .ai-output{margin-top:12px;padding:12px;border-radius:8px;background:var(--surface-2);border:1px solid var(--border);font-size:0.86rem;line-height:1.6;white-space:pre-wrap;min-height:1.6em;}
+  .ai-output.empty{color:var(--text-muted);font-style:italic;}
+  .ai-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;}
+  .ai-row .btn{width:auto;flex:1;min-width:150px;}
+  .status-line{font-size:0.76rem;color:var(--text-muted);margin-top:8px;}
+  .status-line.error{color:var(--bad);}
+  .key-toggle{background:none;border:0;color:var(--accent);font:inherit;font-size:0.78rem;font-weight:600;cursor:pointer;padding:0;}
+  .key-box{margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);}
+  footer.credit{margin-top:24px;text-align:center;color:var(--text-muted);font-size:0.72rem;}
+  .chart-dl{background:var(--surface-2);border:1px solid var(--border);border-radius:6px;width:24px;height:24px;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-muted);padding:0;}
+  .chart-dl:hover{color:var(--accent);border-color:var(--accent);}
+  .chart-dl svg{width:13px;height:13px;}
+  .dl-row{display:flex;gap:8px;margin-top:12px;}
+  .dl-row .btn{width:auto;flex:1;}
+  .theme-seg{flex:0 0 auto;height:fit-content;}
+  .theme-seg button{padding:6px 10px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <h2 class="sr-only">A statistical spatial wireless channel simulator: adjust frequency, distance, and scenario to generate path loss, power-delay profile, angular spectra, and delay/angular spread statistics, with an optional AI explanation of the results.</h2>
+
+  <header class="header">
+    <div>
+      <div class="brand-mark"><span class="brand-dot" aria-hidden="true"></span><h1>mmWave Channel Studio</h1></div>
+      <div class="tag">A lightweight statistical spatial channel simulator for mmWave &amp; sub-THz links — inspired by NYUSIM-style methodology, running entirely in your browser.</div>
+    </div>
+    <div class="seg theme-seg" id="themeSeg" role="group" aria-label="Color theme">
+      <button data-v="light" type="button">Light</button>
+      <button data-v="system" type="button" class="active">System</button>
+      <button data-v="dark" type="button">Dark</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- CONTROLS -->
+    <div>
+      <div class="panel">
+        <h2>Link Setup</h2>
+        <div class="field">
+          <label for="scenario">Scenario</label>
+          <select id="scenario">
+            <option value="UMi">Urban Microcell (UMi)</option>
+            <option value="UMa">Urban Macrocell (UMa)</option>
+            <option value="InH">Indoor Hotspot (InH)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="freq">Frequency <span class="val mono" id="freqVal">28.0 GHz</span></label>
+          <input type="range" id="freq" min="0.5" max="150" step="0.5" value="28">
+        </div>
+        <div class="field">
+          <label for="dist">T-R separation <span class="val mono" id="distVal">100 m</span></label>
+          <input type="range" id="dist" min="1" max="500" step="1" value="100">
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label for="txh">TX height (m)</label>
+            <input type="number" id="txh" min="1" max="150" step="0.5" value="10">
+          </div>
+          <div class="field">
+            <label for="rxh">RX height (m)</label>
+            <input type="number" id="rxh" min="0.5" max="10" step="0.1" value="1.5">
+          </div>
+        </div>
+        <div class="field">
+          <label>Link condition</label>
+          <div class="seg" id="losSeg">
+            <button data-v="auto" class="active">Auto</button>
+            <button data-v="LOS">LOS</button>
+            <button data-v="NLOS">NLOS</button>
+          </div>
+          <div class="hint" id="losHint">Drawn stochastically from a distance-based LOS probability model.</div>
+        </div>
+        <div class="field">
+          <label>Path loss model</label>
+          <div class="seg" id="plSeg">
+            <button data-v="CI" class="active">Close-In (CI)</button>
+            <button data-v="ABG">Alpha-Beta-Gamma</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Channel Realization</h2>
+        <div class="field">
+          <label for="seed">Random seed</label>
+          <input type="number" id="seed" value="1337" step="1">
+        </div>
+        <button class="btn primary" id="newRealization">New realization</button>
+        <div class="hint">Regenerates clusters, subpaths, and angles with a fresh random seed. Same seed + same inputs always reproduce the same channel.</div>
+        <div class="dl-row">
+          <button class="btn" id="downloadParams">Download params (.json)</button>
+        </div>
+        <div class="dl-row">
+          <button class="btn" id="downloadAllCharts">Download all 4 figures (.png)</button>
+        </div>
+        <div class="hint">Figures can also be downloaded individually from the small download icon on each chart.</div>
+        <div class="hint" id="dlStatus"></div>
+      </div>
+
+      <details class="about panel">
+        <summary>About this simulator</summary>
+        <div class="body">
+          <p><strong>What it is:</strong> a self-contained, browser-only implementation of a statistical spatial channel model (SSCM) in the spirit of NYUSIM and 3GPP-style modeling: Close-In / Alpha-Beta-Gamma path loss, Poisson-distributed time clusters and subpaths with exponential power decay, and subpaths grouped into angular "spatial lobes" for azimuth AoA/AoD.</p>
+          <p><strong>What it isn't:</strong> the parameter values (path loss exponents, cluster/lobe statistics, angular spreads) are illustrative defaults chosen to be physically plausible, not NYU WIRELESS's calibrated measurement tables. Treat outputs as educational/prototyping approximations, not a substitute for NYUSIM or real measurement campaigns.</p>
+        </div>
+      </details>
+    </div>
+
+    <!-- RESULTS -->
+    <div>
+      <div class="stat-grid" id="statGrid"></div>
+
+      <div class="chart-grid">
+        <div class="chart-card">
+          <div class="chart-head">
+            <h3>Path loss vs. distance</h3>
+            <div class="legend"><span><span class="swatch" style="background:var(--accent)"></span>mean model</span><span><span class="swatch" style="background:var(--accent-2)"></span>this link</span></div>
+            <button class="chart-dl" data-chart="pl" type="button" title="Download this chart as PNG" aria-label="Download path loss chart as PNG"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v7.5"/><path d="M4.5 7 8 10.5 11.5 7"/><path d="M2.5 13h11"/></svg></button>
+          </div>
+          <div id="chartPL"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-head">
+            <h3>Power delay profile</h3>
+            <div class="legend"><span><span class="swatch" style="background:var(--accent)"></span>subpaths</span></div>
+            <button class="chart-dl" data-chart="pdp" type="button" title="Download this chart as PNG" aria-label="Download power delay profile chart as PNG"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v7.5"/><path d="M4.5 7 8 10.5 11.5 7"/><path d="M2.5 13h11"/></svg></button>
+          </div>
+          <div id="chartPDP"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-head">
+            <h3>Complex CIR taps</h3>
+            <div class="legend"><span><span class="swatch" style="background:var(--accent)"></span>real</span><span><span class="swatch" style="background:var(--accent-2)"></span>imag</span></div>
+            <button class="chart-dl" data-chart="cir" type="button" title="Download this chart as PNG" aria-label="Download CIR chart as PNG"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v7.5"/><path d="M4.5 7 8 10.5 11.5 7"/><path d="M2.5 13h11"/></svg></button>
+          </div>
+          <div id="chartCIR"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-head">
+            <h3>Azimuth angular spectrum</h3>
+            <div class="legend"><span><span class="swatch" style="background:var(--accent)"></span>AoA</span><span><span class="swatch" style="background:var(--accent-2)"></span>AoD</span></div>
+            <button class="chart-dl" data-chart="polar" type="button" title="Download this chart as PNG" aria-label="Download angular spectrum chart as PNG"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v7.5"/><path d="M4.5 7 8 10.5 11.5 7"/><path d="M2.5 13h11"/></svg></button>
+          </div>
+          <div id="chartPolar"></div>
+        </div>
+      </div>
+
+      <div class="panel ai-panel">
+        <h2>Explain these results (Gemini)</h2>
+        <div class="ai-row">
+          <button class="btn primary" id="explainBtn">Explain this channel</button>
+          <button class="key-toggle" id="toggleKeyBox">API key settings</button>
+        </div>
+        <div class="ai-output empty" id="aiOutput">Run a simulation, then click "Explain this channel" for a plain-language read of the results. Requires your own free Gemini API key.</div>
+        <div class="status-line" id="aiStatus"></div>
+        <div class="key-box" id="keyBox" hidden>
+          <div class="field">
+            <label for="geminiKey">Gemini API key</label>
+            <input type="password" id="geminiKey" placeholder="Paste your Gemini API key" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="geminiModel">Model</label>
+            <input type="text" id="geminiModel" value="gemini-2.5-flash">
+          </div>
+          <div class="hint">Stored only in this browser's local storage and sent directly from your browser to Google's Generative Language API — never to any other server. Get a key at Google AI Studio.</div>
+          <button class="btn" id="clearKey" style="margin-top:8px;">Clear saved key</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="credit">Educational statistical channel model · not affiliated with NYU WIRELESS or NYUSIM</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- Theme ----------
+  (function initTheme(){
+    var THEME_KEY = "mmwave_theme_pref";
+    function currentPref(){
+      try{ return localStorage.getItem(THEME_KEY) || "system"; }catch(e){ return "system"; }
+    }
+    function applyTheme(pref){
+      var root = document.documentElement;
+      if (pref === "light" || pref === "dark") root.setAttribute("data-theme", pref);
+      else root.removeAttribute("data-theme");
+    }
+    var pref = currentPref();
+    applyTheme(pref);
+    var seg = document.getElementById("themeSeg");
+    if (!seg) return;
+    var buttons = seg.querySelectorAll("button");
+    buttons.forEach(function(b){ b.classList.toggle("active", b.dataset.v === pref); });
+    seg.addEventListener("click", function(e){
+      var b = e.target.closest("button");
+      if (!b) return;
+      var v = b.dataset.v;
+      applyTheme(v);
+      try{ localStorage.setItem(THEME_KEY, v); }catch(err){}
+      buttons.forEach(function(x){ x.classList.toggle("active", x === b); });
+    });
+  })();
+
+  // ---------- RNG helpers ----------
+  function mulberry32(seed){
+    let a = seed >>> 0;
+    return function(){
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function randNormal(rng){
+    let u = 0, v = 0;
+    while(u === 0) u = rng();
+    while(v === 0) v = rng();
+    return Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*v);
+  }
+  function randExp(rng, mean){ return -mean * Math.log(1 - rng()); }
+  function randLaplace(rng, scale){
+    const u = rng() - 0.5;
+    return -scale * Math.sign(u) * Math.log(1 - 2*Math.abs(u));
+  }
+  function poisson(rng, lambda){
+    const L = Math.exp(-lambda);
+    let k = 0, p = 1;
+    do{ k++; p *= rng(); } while(p > L);
+    return k - 1;
+  }
+  function randInt(rng, lo, hi){ return lo + Math.floor(rng()*(hi-lo+1)); }
+  function clamp(x, lo, hi){ return Math.max(lo, Math.min(hi, x)); }
+  function wrap360(a){ a = a % 360; return a < 0 ? a + 360 : a; }
+
+  // ---------- Scenario parameters (illustrative, not calibrated) ----------
+  const SCENARIOS = {
+    UMi: {
+      label: "Urban Microcell", D0: 66, maxDist: 500,
+      LOS:  { n: 2.0, sigmaCI: 3.5, abg:{a:1.9, b:32.0, g:2.3, sigma:3.4}, k0: 9 },
+      NLOS: { n: 3.0, sigmaCI: 8.0, abg:{a:3.4, b:19.4, g:2.4, sigma:7.8} },
+      clusterLambda: 4, subpathLambda: 8,
+      interDelayMeanNs: 18, intraDelayMeanNs: 5, clusterDecay: 4.0, clusterShadowDb: 3.0,
+      lobesAoA: [1,3], lobesAoD: [1,2], intraLobeAS: 8
+    },
+    UMa: {
+      label: "Urban Macrocell", D0: 63, maxDist: 3000,
+      LOS:  { n: 2.0, sigmaCI: 4.0, abg:{a:2.0, b:28.0, g:2.2, sigma:4.0}, k0: 7 },
+      NLOS: { n: 3.3, sigmaCI: 7.0, abg:{a:3.5, b:20.0, g:2.2, sigma:6.8} },
+      clusterLambda: 6, subpathLambda: 10,
+      interDelayMeanNs: 35, intraDelayMeanNs: 7, clusterDecay: 4.5, clusterShadowDb: 3.5,
+      lobesAoA: [1,4], lobesAoD: [1,3], intraLobeAS: 10
+    },
+    InH: {
+      label: "Indoor Hotspot", D0: 15, maxDist: 150,
+      LOS:  { n: 1.8, sigmaCI: 3.0, abg:{a:1.7, b:33.0, g:2.5, sigma:3.0}, k0: 6 },
+      NLOS: { n: 2.7, sigmaCI: 6.0, abg:{a:3.0, b:19.0, g:2.5, sigma:5.9} },
+      clusterLambda: 5, subpathLambda: 6,
+      interDelayMeanNs: 8, intraDelayMeanNs: 2, clusterDecay: 3.5, clusterShadowDb: 2.5,
+      lobesAoA: [1,3], lobesAoD: [1,2], intraLobeAS: 12
+    }
+  };
+
+  const C = 299792458;
+
+  function pathLossMean(scen, cond, fGHz, d){
+    const sc = scen[cond];
+    if (state.plModel === "CI"){
+      const fHz = fGHz*1e9;
+      const fspl1m = 20*Math.log10(4*Math.PI*fHz/C);
+      return fspl1m + 10*sc.n*Math.log10(d);
+    } else {
+      return 10*sc.abg.a*Math.log10(d) + sc.abg.b + 10*sc.abg.g*Math.log10(fGHz);
+    }
+  }
+  function pathLossSample(rng, scen, cond, fGHz, d){
+    const sc = scen[cond];
+    const sigma = state.plModel === "CI" ? sc.sigmaCI : sc.abg.sigma;
+    return pathLossMean(scen, cond, fGHz, d) + randNormal(rng)*sigma;
+  }
+
+  function generateChannel(p){
+    const rng = mulberry32(p.seed >>> 0);
+    const scen = SCENARIOS[p.scenario];
+    let cond = p.losMode;
+    let pLOS = null;
+    if (cond === "auto"){
+      pLOS = Math.exp(-Math.max(p.distance - 10, 0) / scen.D0);
+      cond = rng() < pLOS ? "LOS" : "NLOS";
+    }
+    const pathLossDb = pathLossSample(rng, scen, cond, p.freq, p.distance);
+    const freqScale = clamp(1 - 0.12*Math.log10(p.freq/28), 0.5, 1.7);
+
+    const nClusters = clamp(poisson(rng, scen.clusterLambda) + 1, 1, 12);
+    const clusters = [];
+    let cumDelay = 0;
+    const interMean = scen.interDelayMeanNs * freqScale;
+    for (let i=0;i<nClusters;i++){
+      if (i>0) cumDelay += randExp(rng, interMean);
+      const powerRaw = Math.exp(-cumDelay*(scen.clusterDecay-1)/(scen.clusterDecay*interMean)) *
+                        Math.pow(10, -(Math.abs(randNormal(rng))*scen.clusterShadowDb)/10);
+      const nSub = clamp(poisson(rng, scen.subpathLambda) + 1, 1, 30);
+      clusters.push({ delay: cumDelay, powerRaw, nSub });
+    }
+
+    const nLobesAoA = randInt(rng, scen.lobesAoA[0], scen.lobesAoA[1]);
+    const nLobesAoD = randInt(rng, scen.lobesAoD[0], scen.lobesAoD[1]);
+    const lobeAoA = Array.from({length:nLobesAoA}, ()=> rng()*360);
+    const lobeAoD = Array.from({length:nLobesAoD}, ()=> rng()*360);
+
+    let subpaths = [];
+    const intraMean = scen.intraDelayMeanNs * freqScale;
+    clusters.forEach((cl, ci) => {
+      const la = lobeAoA[Math.floor(rng()*nLobesAoA)];
+      const ld = lobeAoD[Math.floor(rng()*nLobesAoD)];
+      const raw = [];
+      let sum = 0;
+      for (let s=0;s<cl.nSub;s++){
+        const intraDelay = randExp(rng, intraMean*0.5 + 0.05);
+        const subPow = Math.exp(-intraDelay/(intraMean*0.5+0.05)) * Math.pow(10, -(rng()*3)/10);
+        raw.push({intraDelay, subPow});
+        sum += subPow;
+      }
+      raw.forEach(rs => {
+        const power = cl.powerRaw * (rs.subPow / sum);
+        const azAoA = wrap360(la + randLaplace(rng, scen.intraLobeAS));
+        const azAoD = wrap360(ld + randLaplace(rng, scen.intraLobeAS));
+        subpaths.push({ delay: cl.delay + rs.intraDelay, power, azAoA, azAoD, cluster: ci, isLOS:false });
+      });
+    });
+
+    let kFactorDb = null;
+    if (cond === "LOS"){
+      const sc = scen.LOS;
+      const k0 = sc.k0 + (rng()-0.5)*2;
+      const maxPow = Math.max.apply(null, subpaths.map(s=>s.power));
+      const losPower = maxPow * Math.pow(10, k0/10);
+      subpaths.unshift({ delay: 0, power: losPower, azAoA: lobeAoA[0]||0, azAoD: lobeAoD[0]||0, cluster:-1, isLOS:true });
+      const restSum = subpaths.filter(s=>!s.isLOS).reduce((a,s)=>a+s.power,0);
+      kFactorDb = 10*Math.log10(losPower/Math.max(restSum,1e-12));
+    }
+
+    const minDelay = Math.min.apply(null, subpaths.map(s=>s.delay));
+    subpaths.forEach(s => s.delay -= minDelay);
+    subpaths.sort((a,b)=>a.delay-b.delay);
+    subpaths.forEach(s => s.phase = rng()*2*Math.PI);
+
+    const totalPower = subpaths.reduce((a,s)=>a+s.power,0);
+    const meanDelay = subpaths.reduce((a,s)=>a+s.power*s.delay,0)/totalPower;
+    const rmsDelaySpread = Math.sqrt(subpaths.reduce((a,s)=>a+s.power*Math.pow(s.delay-meanDelay,2),0)/totalPower);
+
+    function circularSpread(key){
+      let sc_=0, ss_=0;
+      subpaths.forEach(s=>{ const r=s[key]*Math.PI/180; sc_+=s.power*Math.cos(r); ss_+=s.power*Math.sin(r); });
+      const R = Math.sqrt(sc_*sc_+ss_*ss_)/totalPower;
+      return Math.sqrt(Math.max(0,-2*Math.log(Math.max(R,1e-9)))) * 180/Math.PI;
+    }
+
+    return {
+      cond, pLOS, pathLossDb, subpaths, nClusters, totalSubpaths: subpaths.length,
+      rmsDelaySpread, asAoA: circularSpread("azAoA"), asAoD: circularSpread("azAoD"),
+      kFactorDb, scen
+    };
+  }
+
+  // ---------- SVG chart helpers ----------
+  function fmtTick(v, digits){
+    if (Math.abs(v) >= 1000) return (v/1000).toFixed(1)+"k";
+    return v.toFixed(digits);
+  }
+
+  function svgOpen(vb){ return '<svg xmlns="http://www.w3.org/2000/svg" class="chart" viewBox="0 0 '+vb[0]+' '+vb[1]+'" role="img" aria-label="chart">'; }
+
+  // Inline (not class-based) presentation attributes for grid/tick/axis text so
+  // exported standalone SVG/PNG files render identically to the in-page version —
+  // a class like "grid-line" only resolves while the page's own <style> is present.
+  const GRID_ATTR = 'stroke="var(--grid-line)" stroke-width="1"';
+  const TICK_ATTR = 'fill="var(--text-muted)" font-size="8" font-family="\'IBM Plex Mono\',monospace"';
+  const AXIS_ATTR = 'fill="var(--text-muted)" font-size="9" font-family="\'IBM Plex Mono\',monospace"';
+
+  function lineChart(opts){
+    const W=380,H=220,mL=40,mR=12,mT=10,mB=26;
+    const pw=W-mL-mR, ph=H-mT-mB;
+    const logX = !!opts.logX;
+    function sx(v){
+      const a = logX ? Math.log10(opts.xDomain[0]) : opts.xDomain[0];
+      const b = logX ? Math.log10(opts.xDomain[1]) : opts.xDomain[1];
+      const vv = logX ? Math.log10(v) : v;
+      return mL + (vv-a)/(b-a)*pw;
+    }
+    function sy(v){ return mT + ph - (v-opts.yDomain[0])/(opts.yDomain[1]-opts.yDomain[0])*ph; }
+    let s = svgOpen([W,H]);
+    for(let i=0;i<=4;i++){
+      const v = opts.yDomain[0] + (opts.yDomain[1]-opts.yDomain[0])*i/4;
+      const y = sy(v);
+      s += '<line '+GRID_ATTR+' x1="'+mL+'" x2="'+(W-mR)+'" y1="'+y+'" y2="'+y+'"/>';
+      s += '<text '+TICK_ATTR+' x="'+(mL-5)+'" y="'+(y+3)+'" text-anchor="end">'+fmtTick(v,0)+'</text>';
+    }
+    (opts.xTicks||[]).forEach(v=>{
+      const x = sx(v);
+      s += '<line '+GRID_ATTR+' x1="'+x+'" x2="'+x+'" y1="'+mT+'" y2="'+(mT+ph)+'"/>';
+      s += '<text '+TICK_ATTR+' x="'+x+'" y="'+(H-mB+12)+'" text-anchor="middle">'+fmtTick(v,v<1?1:0)+'</text>';
+    });
+    let d = "";
+    opts.points.forEach((pt,i)=>{ d += (i===0?"M":"L")+sx(pt.x).toFixed(2)+","+sy(pt.y).toFixed(2)+" "; });
+    s += '<path d="'+d+'" fill="none" stroke="var(--accent)" stroke-width="2"/>';
+    if (opts.marker){
+      s += '<circle cx="'+sx(opts.marker.x).toFixed(2)+'" cy="'+sy(opts.marker.y).toFixed(2)+'" r="4.5" fill="var(--accent-2)" stroke="var(--surface)" stroke-width="1.5"/>';
+    }
+    s += '<text '+AXIS_ATTR+' x="'+(mL+pw/2)+'" y="'+(H-4)+'" text-anchor="middle">'+opts.xLabel+'</text>';
+    s += '<text '+AXIS_ATTR+' x="-'+(mT+ph/2)+'" y="11" text-anchor="middle" transform="rotate(-90)">'+opts.yLabel+'</text>';
+    s += '</svg>';
+    return s;
+  }
+
+  function stemChart(opts){
+    const W=380,H=220,mL=40,mR=12,mT=10,mB=26;
+    const pw=W-mL-mR, ph=H-mT-mB;
+    function sx(v){ return mL + (v-opts.xDomain[0])/(opts.xDomain[1]-opts.xDomain[0])*pw; }
+    function sy(v){ return mT + ph - (v-opts.yDomain[0])/(opts.yDomain[1]-opts.yDomain[0])*ph; }
+    let s = svgOpen([W,H]);
+    for(let i=0;i<=4;i++){
+      const v = opts.yDomain[0] + (opts.yDomain[1]-opts.yDomain[0])*i/4;
+      const y = sy(v);
+      s += '<line '+GRID_ATTR+' x1="'+mL+'" x2="'+(W-mR)+'" y1="'+y+'" y2="'+y+'"/>';
+      s += '<text '+TICK_ATTR+' x="'+(mL-5)+'" y="'+(y+3)+'" text-anchor="end">'+fmtTick(v,0)+'</text>';
+    }
+    for(let i=0;i<=4;i++){
+      const v = opts.xDomain[0] + (opts.xDomain[1]-opts.xDomain[0])*i/4;
+      const x = sx(v);
+      s += '<text '+TICK_ATTR+' x="'+x+'" y="'+(H-mB+12)+'" text-anchor="middle">'+fmtTick(v,0)+'</text>';
+    }
+    (opts.series||[opts]).forEach(ser=>{
+      ser.points.forEach(pt=>{
+        const x = sx(pt.x), y = sy(pt.y), y0 = sy(0);
+        s += '<line x1="'+x+'" x2="'+x+'" y1="'+y0+'" y2="'+y+'" stroke="'+ser.color+'" stroke-width="1.5" opacity="0.85"/>';
+        s += '<circle cx="'+x+'" cy="'+y+'" r="2.4" fill="'+ser.color+'"/>';
+      });
+    });
+    s += '<line x1="'+mL+'" x2="'+(W-mR)+'" y1="'+sy(0)+'" y2="'+sy(0)+'" stroke="var(--text-muted)" stroke-width="1"/>';
+    s += '<text '+AXIS_ATTR+' x="'+(mL+pw/2)+'" y="'+(H-4)+'" text-anchor="middle">'+opts.xLabel+'</text>';
+    s += '<text '+AXIS_ATTR+' x="-'+(mT+ph/2)+'" y="11" text-anchor="middle" transform="rotate(-90)">'+opts.yLabel+'</text>';
+    s += '</svg>';
+    return s;
+  }
+
+  function polarChart(series){
+    const size = 300, cx=size/2, cy=size/2+6, R=size/2-34;
+    const minDb=-30;
+    let s = svgOpen([size,size]);
+    [0,-10,-20,-30].forEach(db=>{
+      const r = R*(db-minDb)/(0-minDb);
+      s += '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" '+GRID_ATTR+'/>';
+      s += '<text '+TICK_ATTR+' x="'+(cx+3)+'" y="'+(cy-r-2)+'">'+db+'</text>';
+    });
+    for(let a=0;a<360;a+=45){
+      const rad=(a-90)*Math.PI/180;
+      s += '<line x1="'+cx+'" y1="'+cy+'" x2="'+(cx+R*Math.cos(rad)).toFixed(1)+'" y2="'+(cy+R*Math.sin(rad)).toFixed(1)+'" '+GRID_ATTR+'/>';
+      const lx = cx+(R+12)*Math.cos(rad), ly = cy+(R+12)*Math.sin(rad);
+      s += '<text '+TICK_ATTR+' x="'+lx.toFixed(1)+'" y="'+ly.toFixed(1)+'" text-anchor="middle">'+a+'°</text>';
+    }
+    series.forEach(ser=>{
+      const maxP = Math.max.apply(null, ser.points.map(p=>p.power));
+      ser.points.forEach(p=>{
+        const db = clamp(10*Math.log10(p.power/maxP), minDb, 0);
+        const r = R*(db-minDb)/(0-minDb);
+        const rad=(p.az-90)*Math.PI/180;
+        const x = cx+r*Math.cos(rad), y = cy+r*Math.sin(rad);
+        s += '<line x1="'+cx+'" y1="'+cy+'" x2="'+x.toFixed(1)+'" y2="'+y.toFixed(1)+'" stroke="'+ser.color+'" stroke-width="1.3" opacity="0.75"/>';
+        s += '<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="2.6" fill="'+ser.color+'"/>';
+      });
+    });
+    s += '</svg>';
+    return s;
+  }
+
+  // ---------- State & wiring ----------
+  const state = { scenario:"UMi", freq:28, distance:100, txh:10, rxh:1.5, losMode:"auto", plModel:"CI", seed:1337 };
+  let lastResult = null;
+
+  const el = id => document.getElementById(id);
+
+  function setSeg(container, value){
+    container.querySelectorAll("button").forEach(b=>b.classList.toggle("active", b.dataset.v===value));
+  }
+  el("losSeg").addEventListener("click", e=>{
+    const b = e.target.closest("button"); if(!b) return;
+    state.losMode = b.dataset.v; setSeg(el("losSeg"), b.dataset.v);
+    el("losHint").textContent = b.dataset.v==="auto"
+      ? "Drawn stochastically from a distance-based LOS probability model."
+      : "Link condition fixed manually; the LOS probability model is bypassed.";
+    update();
+  });
+  el("plSeg").addEventListener("click", e=>{
+    const b = e.target.closest("button"); if(!b) return;
+    state.plModel = b.dataset.v; setSeg(el("plSeg"), b.dataset.v); update();
+  });
+  el("scenario").addEventListener("change", e=>{
+    state.scenario = e.target.value;
+    const maxD = SCENARIOS[state.scenario].maxDist;
+    el("dist").max = maxD;
+    if (state.distance > maxD){ state.distance = maxD; el("dist").value = maxD; }
+    update();
+  });
+  el("freq").addEventListener("input", e=>{ state.freq = parseFloat(e.target.value); update(); });
+  el("dist").addEventListener("input", e=>{ state.distance = parseFloat(e.target.value); update(); });
+  el("txh").addEventListener("input", e=>{ state.txh = parseFloat(e.target.value)||0; update(); });
+  el("rxh").addEventListener("input", e=>{ state.rxh = parseFloat(e.target.value)||0; update(); });
+  el("seed").addEventListener("input", e=>{ state.seed = parseInt(e.target.value)||0; update(); });
+  el("newRealization").addEventListener("click", ()=>{
+    state.seed = Math.floor(Math.random()*1e9);
+    el("seed").value = state.seed;
+    update();
+  });
+
+  function statTile(label, value, sub, cls){
+    return '<div class="stat"><div class="label">'+label+'</div><div class="value'+(cls?(' '+cls):'')+'">'+value+'</div>'+(sub?'<div class="sub">'+sub+'</div>':'')+'</div>';
+  }
+
+  function update(){
+    el("freqVal").textContent = state.freq.toFixed(1)+" GHz";
+    el("distVal").textContent = state.distance+" m";
+
+    const result = generateChannel(state);
+    lastResult = { state: Object.assign({}, state), result };
+
+    const condPill = result.cond==="LOS"
+      ? '<span class="pill los">LOS</span>'
+      : '<span class="pill nlos">NLOS</span>';
+    let statsHtml = "";
+    statsHtml += statTile("Link condition", condPill, result.pLOS!==null ? ("P(LOS) = "+(result.pLOS*100).toFixed(0)+"%") : "manually fixed");
+    statsHtml += statTile("Path loss", result.pathLossDb.toFixed(1)+" dB", state.plModel+" model");
+    statsHtml += statTile("RMS delay spread", result.rmsDelaySpread.toFixed(1)+" ns", "");
+    statsHtml += statTile("Angular spread (AoA)", result.asAoA.toFixed(1)+"°", "azimuth, RMS");
+    statsHtml += statTile("Angular spread (AoD)", result.asAoD.toFixed(1)+"°", "azimuth, RMS");
+    statsHtml += statTile("K-factor", result.kFactorDb!==null ? result.kFactorDb.toFixed(1)+" dB" : "—", result.kFactorDb!==null?"Rician (LOS ray)":"NLOS: no dominant ray");
+    el("statGrid").innerHTML = statsHtml;
+
+    const scen = result.scen;
+    const maxD = SCENARIOS[state.scenario].maxDist;
+    const pts = [];
+    const N = 60;
+    for(let i=0;i<=N;i++){
+      const d = 1 * Math.pow(maxD/1, i/N);
+      pts.push({x:d, y: pathLossMean(scen, result.cond, state.freq, d)});
+    }
+    const yAll = pts.map(p=>p.y).concat([result.pathLossDb]);
+    const yMin = Math.min.apply(null,yAll)-5, yMax = Math.max.apply(null,yAll)+5;
+    el("chartPL").innerHTML = lineChart({
+      points: pts, logX:true, xDomain:[1,maxD], yDomain:[yMin,yMax],
+      xTicks:[1,10,100,maxD].filter((v,i,a)=>a.indexOf(v)===i),
+      xLabel:"distance (m, log)", yLabel:"path loss (dB)",
+      marker:{x: state.distance, y: result.pathLossDb}
+    });
+
+    const subs = result.subpaths;
+    const maxPow = Math.max.apply(null, subs.map(s=>s.power));
+    const maxDelay = Math.max.apply(null, subs.map(s=>s.delay)) || 1;
+    const pdpPts = subs.map(s=>({x:s.delay, y: 10*Math.log10(s.power/maxPow)}));
+    el("chartPDP").innerHTML = stemChart({
+      xDomain:[0, maxDelay*1.08], yDomain:[-40,0],
+      xLabel:"excess delay (ns)", yLabel:"power (dB, rel.)",
+      series:[{points:pdpPts, color:"var(--accent)"}]
+    });
+
+    const realPts = subs.map(s=>({x:s.delay, y: Math.sqrt(s.power/maxPow)*Math.cos(s.phase)}));
+    const imagPts = subs.map(s=>({x:s.delay, y: Math.sqrt(s.power/maxPow)*Math.sin(s.phase)}));
+    el("chartCIR").innerHTML = stemChart({
+      xDomain:[0, maxDelay*1.08], yDomain:[-1,1],
+      xLabel:"excess delay (ns)", yLabel:"amplitude (norm.)",
+      series:[{points:realPts, color:"var(--accent)"},{points:imagPts, color:"var(--accent-2)"}]
+    });
+
+    el("chartPolar").innerHTML = polarChart([
+      {points: subs.map(s=>({az:s.azAoA, power:s.power})), color:"var(--accent)"},
+      {points: subs.map(s=>({az:s.azAoD, power:s.power})), color:"var(--accent-2)"}
+    ]);
+
+    resetAiOutput();
+  }
+
+  function resetAiOutput(){
+    const out = el("aiOutput");
+    out.textContent = 'Run a simulation, then click "Explain this channel" for a plain-language read of the results.';
+    out.classList.add("empty");
+    el("aiStatus").textContent = "";
+    el("aiStatus").classList.remove("error");
+  }
+
+  // ---------- Export / download ----------
+  const CHART_META = {
+    pl:    { id:"chartPL",    name:"path_loss_vs_distance",    w:380, h:220 },
+    pdp:   { id:"chartPDP",   name:"power_delay_profile",      w:380, h:220 },
+    cir:   { id:"chartCIR",   name:"complex_cir_taps",         w:380, h:220 },
+    polar: { id:"chartPolar", name:"azimuth_angular_spectrum", w:300, h:300 }
+  };
+  const THEME_VARS = ["--accent","--accent-2","--text-muted","--grid-line","--surface"];
+
+  function resolvedThemeColors(){
+    const cs = getComputedStyle(document.documentElement);
+    const map = {};
+    THEME_VARS.forEach(v => { map[v] = (cs.getPropertyValue(v) || "").trim() || "#888"; });
+    return map;
+  }
+
+  let downloadsCapPromise = null;
+  function getDownloadsCap(){
+    if (typeof window.claude === "undefined" || !window.claude.use) return Promise.resolve(null);
+    if (!downloadsCapPromise) downloadsCapPromise = window.claude.use("downloads").catch(()=>null);
+    return downloadsCapPromise;
+  }
+
+  function setDlStatus(msg, isError){
+    const s = el("dlStatus");
+    if (!s) return;
+    s.textContent = msg || "";
+    s.style.color = isError ? "var(--bad)" : "";
+  }
+
+  async function triggerDownload(blob, filename){
+    const cap = await getDownloadsCap();
+    if (cap){
+      try{
+        await cap.save({ filename, data: blob });
+        setDlStatus("");
+      }catch(err){
+        if (err && err.code === "declined"){ setDlStatus(""); return; }
+        setDlStatus("Couldn't save " + filename + ": " + (err && err.message ? err.message : "unknown error"), true);
+      }
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  }
+
+  function downloadChartPng(key){
+    const meta = CHART_META[key];
+    const container = meta && el(meta.id);
+    const svgEl = container && container.querySelector("svg");
+    if (!svgEl) return;
+
+    const colors = resolvedThemeColors();
+    const clone = svgEl.cloneNode(true);
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    rect.setAttribute("x","0"); rect.setAttribute("y","0");
+    rect.setAttribute("width", String(meta.w)); rect.setAttribute("height", String(meta.h));
+    rect.setAttribute("fill", colors["--surface"]);
+    clone.insertBefore(rect, clone.firstChild);
+
+    let svgStr = new XMLSerializer().serializeToString(clone);
+    THEME_VARS.forEach(v => { svgStr = svgStr.split("var("+v+")").join(colors[v]); });
+
+    const svgBlob = new Blob([svgStr], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(svgBlob);
+    const img = new Image();
+    img.onload = function(){
+      const scale = 2;
+      const canvas = document.createElement("canvas");
+      canvas.width = meta.w * scale; canvas.height = meta.h * scale;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(function(blob){
+        if (blob) triggerDownload(blob, meta.name + "_seed" + state.seed + ".png");
+      }, "image/png");
+    };
+    img.onerror = function(){ URL.revokeObjectURL(url); };
+    img.src = url;
+  }
+
+  document.querySelectorAll(".chart-dl").forEach(btn=>{
+    btn.addEventListener("click", ()=> downloadChartPng(btn.dataset.chart));
+  });
+
+  el("downloadAllCharts").addEventListener("click", ()=>{
+    Object.keys(CHART_META).forEach((key, i)=>{
+      setTimeout(()=> downloadChartPng(key), i*300);
+    });
+  });
+
+  el("downloadParams").addEventListener("click", ()=>{
+    if (!lastResult) return;
+    const { state: st, result: r } = lastResult;
+    const payload = {
+      generatedBy: "mmWave Channel Studio",
+      generatedAt: new Date().toISOString(),
+      note: "Educational statistical spatial channel model inspired by NYUSIM/3GPP-style methodology. Parameter values are illustrative, not NYU WIRELESS calibrated tables.",
+      inputs: {
+        scenario: st.scenario,
+        scenarioLabel: SCENARIOS[st.scenario].label,
+        frequencyGHz: st.freq,
+        distanceM: st.distance,
+        txHeightM: st.txh,
+        rxHeightM: st.rxh,
+        losMode: st.losMode,
+        pathLossModel: st.plModel,
+        randomSeed: st.seed
+      },
+      results: {
+        linkCondition: r.cond,
+        losProbability: r.pLOS,
+        pathLossDb: +r.pathLossDb.toFixed(3),
+        numClusters: r.nClusters,
+        numSubpaths: r.totalSubpaths,
+        rmsDelaySpreadNs: +r.rmsDelaySpread.toFixed(3),
+        rmsAngularSpreadAoADeg: +r.asAoA.toFixed(3),
+        rmsAngularSpreadAoDDeg: +r.asAoD.toFixed(3),
+        kFactorDb: r.kFactorDb !== null ? +r.kFactorDb.toFixed(3) : null
+      },
+      subpaths: r.subpaths.map(s => ({
+        delayNs: +s.delay.toFixed(4),
+        powerLinear: s.power,
+        powerDb: +(10*Math.log10(s.power)).toFixed(3),
+        azimuthAoADeg: +s.azAoA.toFixed(2),
+        azimuthAoDDeg: +s.azAoD.toFixed(2),
+        phaseRad: +s.phase.toFixed(4),
+        cluster: s.cluster,
+        isLOS: !!s.isLOS
+      }))
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    triggerDownload(blob, "channel_params_seed" + st.seed + ".json");
+  });
+
+  // ---------- Gemini integration ----------
+  const KEY_STORAGE = "mmwave_studio_gemini_key";
+  const MODEL_STORAGE = "mmwave_studio_gemini_model";
+  try{
+    const savedKey = localStorage.getItem(KEY_STORAGE);
+    if (savedKey) el("geminiKey").value = savedKey;
+    const savedModel = localStorage.getItem(MODEL_STORAGE);
+    if (savedModel) el("geminiModel").value = savedModel;
+  }catch(e){}
+
+  el("toggleKeyBox").addEventListener("click", ()=>{
+    el("keyBox").hidden = !el("keyBox").hidden;
+  });
+  el("geminiKey").addEventListener("change", e=>{
+    try{ localStorage.setItem(KEY_STORAGE, e.target.value); }catch(err){}
+  });
+  el("geminiModel").addEventListener("change", e=>{
+    try{ localStorage.setItem(MODEL_STORAGE, e.target.value); }catch(err){}
+  });
+  el("clearKey").addEventListener("click", ()=>{
+    el("geminiKey").value = "";
+    try{ localStorage.removeItem(KEY_STORAGE); }catch(err){}
+  });
+
+  el("explainBtn").addEventListener("click", async ()=>{
+    const key = el("geminiKey").value.trim();
+    const status = el("aiStatus");
+    const out = el("aiOutput");
+    if (!key){
+      el("keyBox").hidden = false;
+      status.textContent = "Add your Gemini API key above first.";
+      status.classList.add("error");
+      return;
+    }
+    if (!lastResult){ return; }
+    const model = (el("geminiModel").value || "gemini-2.5-flash").trim();
+    const { state: st, result: r } = lastResult;
+
+    const summary = [
+      "Scenario: "+SCENARIOS[st.scenario].label+" ("+st.scenario+")",
+      "Frequency: "+st.freq+" GHz",
+      "T-R separation: "+st.distance+" m, TX height "+st.txh+" m, RX height "+st.rxh+" m",
+      "Path loss model: "+st.plModel,
+      "Link condition: "+r.cond+(r.pLOS!==null? " (P(LOS)="+(r.pLOS*100).toFixed(0)+"%)":" (manually forced)"),
+      "Path loss: "+r.pathLossDb.toFixed(1)+" dB",
+      "Clusters: "+r.nClusters+", subpaths: "+r.totalSubpaths,
+      "RMS delay spread: "+r.rmsDelaySpread.toFixed(1)+" ns",
+      "RMS azimuth angular spread — AoA: "+r.asAoA.toFixed(1)+"°, AoD: "+r.asAoD.toFixed(1)+"°",
+      "Rician K-factor: "+(r.kFactorDb!==null ? r.kFactorDb.toFixed(1)+" dB" : "not applicable (NLOS)")
+    ].join("\n");
+
+    const prompt = "You are a wireless communications engineer reviewing output from a simplified, "+
+      "educational statistical spatial channel model (inspired by NYUSIM/3GPP-style mmWave modeling). "+
+      "In 4-6 plain-language sentences: (1) describe what this channel physically looks like, "+
+      "(2) explain why these numbers make sense given the scenario, frequency, and distance, and "+
+      "(3) give one concrete implication for system design (e.g. beamforming, OFDM cyclic prefix length, "+
+      "link budget margin). Avoid restating the raw numbers as a list; write prose.\n\nSimulated channel:\n"+summary;
+
+    el("explainBtn").disabled = true;
+    status.classList.remove("error");
+    status.textContent = "Asking Gemini…";
+    out.textContent = "";
+    out.classList.add("empty");
+
+    try{
+      const resp = await fetch("https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(model)+":generateContent?key="+encodeURIComponent(key), {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ contents:[{ parts:[{ text: prompt }] }] })
+      });
+      const data = await resp.json();
+      if (!resp.ok){
+        throw new Error((data && data.error && data.error.message) || ("HTTP "+resp.status));
+      }
+      const text = data && data.candidates && data.candidates[0] && data.candidates[0].content &&
+                   data.candidates[0].content.parts && data.candidates[0].content.parts.map(p=>p.text||"").join("");
+      if (text){
+        out.textContent = text.trim();
+        out.classList.remove("empty");
+        status.textContent = "";
+      } else {
+        throw new Error("No explanation returned by the model.");
+      }
+    }catch(err){
+      status.textContent = "Gemini request failed: "+err.message;
+      status.classList.add("error");
+      out.textContent = 'Run a simulation, then click "Explain this channel" for a plain-language read of the results.';
+      out.classList.add("empty");
+    }finally{
+      el("explainBtn").disabled = false;
+    }
+  });
+
+  update();
+})();
+</script>
+</body>
+</html>
